@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filenotes"
+version = "0.1.0"
+description = "Yet another lab notes program: append timestamped notes to files, folders, or git HEAD."
+readme = "DEVDOC.md"
+requires-python = ">=3.9"
+authors = [{ name = "Andrzej Rutkowski", email = "andrzej.rutkowski@gmail.com" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+note = "filenotes.note:main"
+ls-notes = "filenotes.lsnotes:main"
+
+[tool.setuptools.packages.find]
+include = ["filenotes*"]
