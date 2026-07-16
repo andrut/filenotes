@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -59,9 +60,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Append a timestamped note to a file or the current folder.",
     )
     parser.add_argument(
-        "target",
-        nargs="?",
-        help="File to annotate. Omit (or use '.') to annotate the current folder.",
+        "targets",
+        nargs="*",
+        help="File(s) to annotate. Omit (or use '.') for the current folder. "
+        "Multiple files get the same note (broadcast).",
     )
     parser.add_argument(
         "-m", "--message", help="Note text. Without it, your $EDITOR opens."
@@ -73,15 +75,19 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[list] = None) -> int:
     args = build_parser().parse_args(argv)
 
-    if args.target is not None and args.target != ".":
-        if is_note_file(Path(args.target)):
+    # No targets means a single folder note; otherwise one note file per target.
+    targets = args.targets or [None]
+
+    # Validate up front so we never write a partial broadcast.
+    for target in targets:
+        if target is not None and target != "." and is_note_file(Path(target)):
             print(
-                f"error: '{args.target}' is itself a note file; refusing to nest notes.",
+                f"error: '{target}' is itself a note file; refusing to nest notes.",
                 file=sys.stderr,
             )
             return 2
 
-    note_path = note_file_for(args.target)
+    note_paths = [note_file_for(t) for t in targets]
 
     if args.message is not None:
         message = args.message
@@ -91,8 +97,11 @@ def main(argv: Optional[list] = None) -> int:
             print("Cancelled — nothing appended.", file=sys.stderr)
             return 1
 
-    append_note(note_path, message)
-    print(f"Appended note to {note_path}")
+    # Single timestamp so a broadcast note shares one moment across files.
+    when = datetime.now()
+    for note_path in note_paths:
+        append_note(note_path, message, when=when)
+        print(f"Appended note to {note_path}")
     return 0
 
 
