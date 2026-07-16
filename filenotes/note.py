@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Optional
 
 from . import __version__
-from .core import append_note, is_note_file, note_file_for
+from .core import (
+    ASSET_STAMP_FORMAT,
+    append_note,
+    copy_image,
+    image_markdown,
+    is_note_file,
+    note_file_for,
+)
 
 EDITOR_TEMPLATE = """
 # Enter your note above. Lines starting with '#' are ignored.
@@ -68,6 +75,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-m", "--message", help="Note text. Without it, your $EDITOR opens."
     )
+    parser.add_argument(
+        "-i",
+        "--image",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="Image to attach after the note (repeatable). Copied into "
+        "notes-assets/ and linked in Markdown.",
+    )
     parser.add_argument("--version", action="version", version=f"note {__version__}")
     return parser
 
@@ -87,6 +103,13 @@ def main(argv: Optional[list] = None) -> int:
             )
             return 2
 
+    # Validate images up front too, so nothing is written on a bad path.
+    images = [Path(p) for p in args.image]
+    for img in images:
+        if not img.is_file():
+            print(f"error: image not found: '{img}'", file=sys.stderr)
+            return 2
+
     note_paths = [note_file_for(t) for t in targets]
 
     if args.message is not None:
@@ -94,13 +117,23 @@ def main(argv: Optional[list] = None) -> int:
     else:
         message = capture_from_editor()
         if message is None:
-            print("Cancelled — nothing appended.", file=sys.stderr)
-            return 1
+            # An empty editor still counts as a note when images are attached.
+            if not images:
+                print("Cancelled — nothing appended.", file=sys.stderr)
+                return 1
+            message = ""
 
     # Single timestamp so a broadcast note shares one moment across files.
     when = datetime.now()
+    stamp = when.strftime(ASSET_STAMP_FORMAT)
     for note_path in note_paths:
-        append_note(note_path, message, when=when)
+        note_dir = note_path.parent
+        img_lines = []
+        for img in images:
+            dest = copy_image(note_dir, img, stamp)
+            img_lines.append(image_markdown(note_dir, dest, img.name))
+        body = "\n\n".join(part for part in [message.strip("\n"), *img_lines] if part)
+        append_note(note_path, body, when=when)
         print(f"Appended note to {note_path}")
     return 0
 

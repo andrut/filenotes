@@ -17,21 +17,28 @@ stays clean, human-readable Markdown with no bookkeeping markers.
 
 from __future__ import annotations
 
+import filecmp
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 # Suffix for per-file note files and the fixed name for folder notes.
 NOTE_SUFFIX = ".notes.md"
 FOLDER_NOTE_NAME = "NOTES.md"
+ASSETS_DIRNAME = "notes-assets"
 
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+# Used to build collision-resistant copied-image filenames.
+ASSET_STAMP_FORMAT = "%Y-%m-%d_%H%M%S"
 # A line that is *only* a timestamp marks the start of a note entry.
 _TIMESTAMP_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+# Markdown image: ![alt](path)
+_IMAGE_MD = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 
 
 # --------------------------------------------------------------------------- #
@@ -91,8 +98,13 @@ class Entry:
     text: str
 
     def summary(self) -> str:
-        """Collapse the entry body to a single line for short mode."""
-        return " ".join(self.text.split())
+        """Collapse the entry body to a single line for short mode.
+
+        Image markdown is replaced with a compact ``[img]`` marker so a
+        wall of ``![...](...)`` links doesn't drown the text.
+        """
+        text = _IMAGE_MD.sub("[img]", self.text)
+        return " ".join(text.split())
 
 
 def append_note(note_path: Path, message: str, when: Optional[datetime] = None) -> None:
@@ -111,6 +123,35 @@ def append_note(note_path: Path, message: str, when: Optional[datetime] = None) 
             prefix = "\n"
     with note_path.open("a", encoding="utf-8") as fh:
         fh.write(prefix + entry)
+
+
+def copy_image(note_dir: Path, src: Path, stamp: str) -> Path:
+    """Copy *src* into ``<note_dir>/notes-assets/`` and return the copy's path.
+
+    The copy is named ``<stamp>_<original-name>``. If a *different* file already
+    claims that name, a numeric suffix is added so nothing is overwritten. An
+    identical existing copy (e.g. the same image broadcast to sibling notes) is
+    reused in place.
+    """
+    assets = Path(note_dir) / ASSETS_DIRNAME
+    assets.mkdir(parents=True, exist_ok=True)
+    base = f"{stamp}_{src.name}"
+    dest = assets / base
+    n = 1
+    while dest.exists() and not filecmp.cmp(dest, src, shallow=False):
+        stem, ext = os.path.splitext(base)
+        dest = assets / f"{stem}_{n}{ext}"
+        n += 1
+    shutil.copy2(src, dest)
+    return dest
+
+
+def image_markdown(note_dir: Path, dest: Path, alt: str) -> str:
+    """Render a Markdown image link from *note_dir* to the copied image."""
+    rel = os.path.relpath(dest, note_dir if str(note_dir) else ".")
+    # Markdown wants forward slashes even on non-POSIX filesystems.
+    rel = rel.replace(os.sep, "/")
+    return f"![{alt}]({rel})"
 
 
 def parse_entries(text: str) -> List[Entry]:
