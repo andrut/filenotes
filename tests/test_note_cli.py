@@ -1,7 +1,7 @@
-import os
 from pathlib import Path
 
 from filenotes import note as note_cli
+from filenotes.capture import CaptureError
 from filenotes.core import read_entries
 
 
@@ -78,6 +78,40 @@ def test_broadcast_images_share_one_copy(tmp_path, monkeypatch):
     assert len(list(Path("notes-assets").iterdir())) == 1
     for name in ("a.npy", "b.npy"):
         assert "shared.png" in read_entries(Path(name + ".notes.md"))[0].text
+
+
+def test_screenshot_capture_wiring(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+
+    def fake_capture(dest):
+        Path(dest).write_bytes(b"FAKEPNG")
+        return "faketool"
+
+    monkeypatch.setattr(note_cli.capture_mod, "capture_fullscreen", fake_capture)
+
+    rc = note_cli.main(["run.npy", "-m", "state", "-S"])
+    assert rc == 0
+    text = read_entries(Path("run.npy.notes.md"))[0].text
+    assert "![screenshot.png](notes-assets/" in text
+    # The captured image was copied into notes-assets with the frozen bytes.
+    copy = next(Path("notes-assets").iterdir())
+    assert copy.read_bytes() == b"FAKEPNG"
+
+
+def test_capture_failure_aborts(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+
+    def boom(dest):
+        raise CaptureError("no image in clipboard")
+
+    monkeypatch.setattr(note_cli.capture_mod, "capture_clipboard", boom)
+
+    rc = note_cli.main(["run.npy", "-m", "x", "-C"])
+    assert rc == 2
+    assert not Path("run.npy.notes.md").exists()
+    assert not Path("notes-assets").exists()
 
 
 def test_no_target_writes_folder_note(tmp_path, monkeypatch):

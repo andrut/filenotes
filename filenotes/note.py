@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import __version__
+from . import capture as capture_mod
 from .core import (
     ASSET_STAMP_FORMAT,
     append_note,
@@ -84,6 +85,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Image to attach after the note (repeatable). Copied into "
         "notes-assets/ and linked in Markdown.",
     )
+    parser.add_argument(
+        "-S", "--screenshot", action="store_true", help="Attach a full-screen capture."
+    )
+    parser.add_argument(
+        "-R", "--region", action="store_true", help="Attach a selected screen region."
+    )
+    parser.add_argument(
+        "-C", "--clipboard", action="store_true", help="Attach the clipboard image."
+    )
     parser.add_argument("--version", action="version", version=f"note {__version__}")
     return parser
 
@@ -112,29 +122,55 @@ def main(argv: Optional[list] = None) -> int:
 
     note_paths = [note_file_for(t) for t in targets]
 
-    if args.message is not None:
-        message = args.message
-    else:
-        message = capture_from_editor()
-        if message is None:
-            # An empty editor still counts as a note when images are attached.
-            if not images:
-                print("Cancelled — nothing appended.", file=sys.stderr)
-                return 1
-            message = ""
+    # Captured images (screenshot / region / clipboard) live in a temp dir until
+    # copied into each note's notes-assets/. Capture happens before the editor so
+    # an empty caption still records the shot.
+    captures = []
+    if args.screenshot:
+        captures.append(("screenshot.png", capture_mod.capture_fullscreen))
+    if args.region:
+        captures.append(("region.png", capture_mod.capture_region))
+    if args.clipboard:
+        captures.append(("clipboard.png", capture_mod.capture_clipboard))
 
-    # Single timestamp so a broadcast note shares one moment across files.
-    when = datetime.now()
-    stamp = when.strftime(ASSET_STAMP_FORMAT)
-    for note_path in note_paths:
-        note_dir = note_path.parent
-        img_lines = []
-        for img in images:
-            dest = copy_image(note_dir, img, stamp)
-            img_lines.append(image_markdown(note_dir, dest, img.name))
-        body = "\n\n".join(part for part in [message.strip("\n"), *img_lines] if part)
-        append_note(note_path, body, when=when)
-        print(f"Appended note to {note_path}")
+    tmpdir = tempfile.mkdtemp(prefix="note-capture-") if captures else None
+    try:
+        for base, fn in captures:
+            dest = os.path.join(tmpdir, base)
+            try:
+                tool = fn(dest)
+            except capture_mod.CaptureError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+            print(f"Captured {Path(base).stem} via {tool}", file=sys.stderr)
+            images.append(Path(dest))
+
+        if args.message is not None:
+            message = args.message
+        else:
+            message = capture_from_editor()
+            if message is None:
+                # An empty editor still counts as a note when images are attached.
+                if not images:
+                    print("Cancelled — nothing appended.", file=sys.stderr)
+                    return 1
+                message = ""
+
+        # Single timestamp so a broadcast note shares one moment across files.
+        when = datetime.now()
+        stamp = when.strftime(ASSET_STAMP_FORMAT)
+        for note_path in note_paths:
+            note_dir = note_path.parent
+            img_lines = []
+            for img in images:
+                dest = copy_image(note_dir, img, stamp)
+                img_lines.append(image_markdown(note_dir, dest, img.name))
+            body = "\n\n".join(p for p in [message.strip("\n"), *img_lines] if p)
+            append_note(note_path, body, when=when)
+            print(f"Appended note to {note_path}")
+    finally:
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
     return 0
 
 
