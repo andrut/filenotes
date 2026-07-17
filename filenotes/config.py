@@ -20,7 +20,14 @@ from typing import Dict
 
 DEFAULTS: Dict[str, object] = {
     "recent_count": 5,
+    "stamp_commit": True,
 }
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
 def config_path() -> Path:
@@ -53,6 +60,8 @@ def _parse(text: str) -> Dict[str, object]:
         key, value = key.strip(), value.strip().strip('"').strip("'")
         if value.lstrip("-").isdigit():
             parsed[key] = int(value)
+        elif value.lower() in ("true", "false"):
+            parsed[key] = value.lower() == "true"
         else:
             parsed[key] = value
     return parsed
@@ -73,9 +82,14 @@ def load_config() -> Dict[str, object]:
     if env_count and env_count.isdigit():
         cfg["recent_count"] = int(env_count)
 
+    env_stamp = os.environ.get("FILENOTES_STAMP_COMMIT")
+    if env_stamp is not None:
+        cfg["stamp_commit"] = _as_bool(env_stamp)
+
     try:
         cfg["recent_count"] = max(1, int(cfg["recent_count"]))
     except (TypeError, ValueError):
         cfg["recent_count"] = DEFAULTS["recent_count"]
+    cfg["stamp_commit"] = _as_bool(cfg["stamp_commit"])
 
     return cfg

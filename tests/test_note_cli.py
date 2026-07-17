@@ -151,6 +151,49 @@ def test_selector_cancel(tmp_path, monkeypatch):
     assert not list(Path(".").glob("*.notes.md"))
 
 
+def test_note_auto_stamps_in_repo(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(git_repo / "no-config.toml"))
+    monkeypatch.delenv("FILENOTES_STAMP_COMMIT", raising=False)
+
+    rc = note_cli.main(["model.py", "-m", "0.92 accuracy"])
+    assert rc == 0
+    text = read_entries(Path("model.py.notes.md"))[0].text
+    assert "0.92 accuracy" in text
+    assert "@ `" in text and "`main`" in text
+
+
+def test_no_commit_flag_suppresses_stamp(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(git_repo / "no-config.toml"))
+    monkeypatch.delenv("FILENOTES_STAMP_COMMIT", raising=False)
+
+    rc = note_cli.main(["model.py", "-m", "no stamp", "--no-commit"])
+    assert rc == 0
+    text = read_entries(Path("model.py.notes.md"))[0].text
+    assert text == "no stamp"
+
+
+def test_config_can_disable_stamp(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(git_repo / "no-config.toml"))
+    monkeypatch.setenv("FILENOTES_STAMP_COMMIT", "false")
+
+    note_cli.main(["model.py", "-m", "plain"])
+    assert read_entries(Path("model.py.notes.md"))[0].text == "plain"
+
+
+def test_stamp_after_message_before_images(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(git_repo / "no-config.toml"))
+    monkeypatch.delenv("FILENOTES_STAMP_COMMIT", raising=False)
+    Path("p.png").write_bytes(b"IMG")
+
+    note_cli.main(["model.py", "-m", "result", "-i", "p.png"])
+    text = read_entries(Path("model.py.notes.md"))[0].text
+    assert text.index("result") < text.index("@ `") < text.index("![")
+
+
 def test_dot_target_still_writes_folder_note(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rc = note_cli.main([".", "-m", "folder log"])

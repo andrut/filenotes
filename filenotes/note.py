@@ -14,6 +14,7 @@ from typing import Optional
 
 from . import __version__
 from . import capture as capture_mod
+from . import gitctx
 from .config import load_config
 from .core import (
     ASSET_STAMP_FORMAT,
@@ -143,6 +144,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-C", "--clipboard", action="store_true", help="Attach the clipboard image."
     )
+    parser.add_argument(
+        "--commit",
+        dest="commit",
+        action="store_true",
+        default=None,
+        help="Stamp the note with the current commit/branch/dirty state.",
+    )
+    parser.add_argument(
+        "--no-commit",
+        dest="commit",
+        action="store_false",
+        help="Do not add the version-control stamp (overrides the config default).",
+    )
     parser.add_argument("--version", action="version", version=f"note {__version__}")
     return parser
 
@@ -213,6 +227,21 @@ def main(argv: Optional[list] = None) -> int:
                     return 1
                 message = ""
 
+        # Version-control stamp: default on (config), forced by --commit /
+        # --no-commit. Computed once so a broadcast stamps every file the same.
+        want_stamp = load_config()["stamp_commit"] if args.commit is None else args.commit
+        stamp_line = None
+        if want_stamp:
+            ctx = gitctx.git_context()
+            if ctx is not None:
+                stamp_line = ctx.stamp()
+            elif args.commit is True:
+                print(
+                    "note: --commit requested but no git commit found here; "
+                    "writing without a stamp.",
+                    file=sys.stderr,
+                )
+
         # Single timestamp so a broadcast note shares one moment across files.
         when = datetime.now()
         stamp = when.strftime(ASSET_STAMP_FORMAT)
@@ -222,7 +251,11 @@ def main(argv: Optional[list] = None) -> int:
             for img in images:
                 dest = copy_image(note_dir, img, stamp)
                 img_lines.append(image_markdown(note_dir, dest, img.name))
-            body = "\n\n".join(p for p in [message.strip("\n"), *img_lines] if p)
+            parts = [message.strip("\n")]
+            if stamp_line:
+                parts.append(stamp_line)
+            parts.extend(img_lines)
+            body = "\n\n".join(p for p in parts if p)
             append_note(note_path, body, when=when)
             print(f"Appended note to {note_path}")
     finally:
