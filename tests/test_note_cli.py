@@ -1,8 +1,29 @@
+import io
+import os
 from pathlib import Path
 
 from filenotes import note as note_cli
 from filenotes.capture import CaptureError
 from filenotes.core import read_entries
+
+
+class FakeTTY(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def _setup_selector(tmp_path, monkeypatch, answer):
+    """Run the recent-file selector against a fake interactive terminal."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(tmp_path / "no-config.toml"))
+    monkeypatch.delenv("FILENOTES_RECENT_COUNT", raising=False)
+    for i, name in enumerate(["oldest.npy", "newest.log"]):
+        p = Path(name)
+        p.write_text("data")
+        os.utime(p, (2000 + i * 100, 2000 + i * 100))
+    monkeypatch.setattr(note_cli.sys, "stdin", FakeTTY())
+    monkeypatch.setattr(note_cli.sys, "stderr", FakeTTY())
+    monkeypatch.setattr("builtins.input", lambda prompt="": answer)
 
 
 def test_broadcast_writes_same_note_to_each(tmp_path, monkeypatch):
@@ -114,9 +135,25 @@ def test_capture_failure_aborts(tmp_path, monkeypatch):
     assert not Path("notes-assets").exists()
 
 
-def test_no_target_writes_folder_note(tmp_path, monkeypatch):
+def test_selector_picks_newest(tmp_path, monkeypatch):
+    _setup_selector(tmp_path, monkeypatch, answer="1")
+    rc = note_cli.main(["-m", "from selector"])
+    assert rc == 0
+    # Option 1 is the newest file.
+    assert read_entries(Path("newest.log.notes.md"))[0].text == "from selector"
+    assert not Path("oldest.npy.notes.md").exists()
+
+
+def test_selector_cancel(tmp_path, monkeypatch):
+    _setup_selector(tmp_path, monkeypatch, answer="q")
+    rc = note_cli.main(["-m", "from selector"])
+    assert rc == 1
+    assert not list(Path(".").glob("*.notes.md"))
+
+
+def test_dot_target_still_writes_folder_note(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    rc = note_cli.main(["-m", "folder log"])
+    rc = note_cli.main([".", "-m", "folder log"])
     assert rc == 0
     entries = read_entries(Path("NOTES.md"))
     assert len(entries) == 1

@@ -192,6 +192,40 @@ def discover_note_files(directory: Path = Path(".")) -> List[Path]:
     return found
 
 
+def recent_files(directory: Path = Path("."), count: int = 5) -> List[Path]:
+    """The *count* most recently modified note-able files in *directory*.
+
+    Excludes note files, dotfiles, and directories — these are candidates the
+    user might want to annotate, newest first.
+    """
+    candidates = []
+    for entry in directory.iterdir():
+        if entry.name.startswith(".") or is_note_file(entry) or not entry.is_file():
+            continue
+        try:
+            candidates.append((entry.stat().st_mtime, entry))
+        except OSError:
+            continue
+    candidates.sort(key=lambda pair: pair[0], reverse=True)
+    return [entry for _, entry in candidates[:count]]
+
+
+def humanize_age(mtime: float, now: Optional[float] = None) -> str:
+    """A short, friendly description of how long ago *mtime* was."""
+    now = now if now is not None else datetime.now().timestamp()
+    delta = int(now - mtime)
+    if delta < 0:
+        delta = 0
+    if delta < 60:
+        return "just now"
+    for unit, secs in (("min", 60), ("hour", 3600), ("day", 86400)):
+        if delta < secs * (60 if unit == "min" else 24 if unit == "hour" else 7):
+            n = delta // secs
+            plural = "" if n == 1 or unit == "min" else "s"
+            return f"{n} {unit}{plural} ago"
+    return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+
+
 # --------------------------------------------------------------------------- #
 # Terminal colors
 # --------------------------------------------------------------------------- #

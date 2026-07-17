@@ -14,13 +14,17 @@ from typing import Optional
 
 from . import __version__
 from . import capture as capture_mod
+from .config import load_config
 from .core import (
     ASSET_STAMP_FORMAT,
+    Color,
     append_note,
     copy_image,
+    humanize_age,
     image_markdown,
     is_note_file,
     note_file_for,
+    recent_files,
 )
 
 EDITOR_TEMPLATE = """
@@ -62,6 +66,51 @@ def capture_from_editor() -> Optional[str]:
     return text or None
 
 
+def select_recent_target() -> Optional[str]:
+    """Interactively pick a recent file to annotate.
+
+    Returns the chosen path, or None if there is nothing to choose or the user
+    cancels. The menu is drawn on stderr so stdout stays clean.
+    """
+    if not (sys.stdin.isatty() and sys.stderr.isatty()):
+        print(
+            "note: no file given and no interactive terminal for the selector; "
+            "pass a file, or use 'note .' for a folder note.",
+            file=sys.stderr,
+        )
+        return None
+
+    count = load_config()["recent_count"]
+    files = recent_files(Path("."), count)
+    if not files:
+        print("note: no recent files here to annotate.", file=sys.stderr)
+        return None
+
+    color = Color(sys.stderr)
+    now = datetime.now().timestamp()
+    width = max(len(f.name) for f in files)
+    print("Recent files:", file=sys.stderr)
+    for i, f in enumerate(files, 1):
+        age = humanize_age(f.stat().st_mtime, now)
+        print(
+            f"  {color.dim(str(i) + ')')} {f.name.ljust(width)}  {color.time(age)}",
+            file=sys.stderr,
+        )
+
+    prompt = f"Select 1-{len(files)} (Enter/q to cancel): "
+    while True:
+        try:
+            choice = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print(file=sys.stderr)
+            return None
+        if choice == "" or choice.lower() == "q":
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(files):
+            return str(files[int(choice) - 1])
+        print(f"  '{choice}' is not 1-{len(files)}.", file=sys.stderr)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="note",
@@ -101,8 +150,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[list] = None) -> int:
     args = build_parser().parse_args(argv)
 
-    # No targets means a single folder note; otherwise one note file per target.
-    targets = args.targets or [None]
+    # Bare `note` (no targets) opens the recent-file selector. `note .` is the
+    # explicit folder note. Otherwise one note file per target.
+    if args.targets:
+        targets = args.targets
+    else:
+        selected = select_recent_target()
+        if selected is None:
+            print("Cancelled — nothing appended.", file=sys.stderr)
+            return 1
+        targets = [selected]
 
     # Validate up front so we never write a partial broadcast.
     for target in targets:
