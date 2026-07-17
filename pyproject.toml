@@ -15,8 +15,10 @@ dependencies = []
 dev = ["pytest"]
 
 [project.scripts]
+notes = "filenotes.cli:main"
 note = "filenotes.note:main"
 ls-notes = "filenotes.lsnotes:main"
+cat-notes = "filenotes.catnotes:main"
 
 [tool.setuptools.packages.find]
 include = ["filenotes*"]

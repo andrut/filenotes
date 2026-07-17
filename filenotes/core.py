@@ -192,6 +192,26 @@ def discover_note_files(directory: Path = Path(".")) -> List[Path]:
     return found
 
 
+def walk_note_files(root: Path = Path("."), recursive: bool = False) -> List[Path]:
+    """All note files under *root*.
+
+    With ``recursive=False`` only *root* itself is scanned. With ``recursive=True``
+    subfolders are walked too, skipping dotfolders and notes-assets/ directories.
+    """
+    if not recursive:
+        return discover_note_files(root)
+    found: List[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [
+            d for d in dirnames if not d.startswith(".") and d != ASSETS_DIRNAME
+        ]
+        for name in filenames:
+            candidate = Path(dirpath) / name
+            if is_note_file(candidate):
+                found.append(candidate)
+    return found
+
+
 def recent_files(directory: Path = Path("."), count: int = 5) -> List[Path]:
     """The *count* most recently modified note-able files in *directory*.
 
