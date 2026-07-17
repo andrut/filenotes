@@ -251,12 +251,8 @@ def main(argv: Optional[list] = None) -> int:
             for img in images:
                 dest = copy_image(note_dir, img, stamp)
                 img_lines.append(image_markdown(note_dir, dest, img.name))
-            parts = [message.strip("\n")]
-            if stamp_line:
-                parts.append(stamp_line)
-            parts.extend(img_lines)
-            body = "\n\n".join(p for p in parts if p)
-            append_note(note_path, body, when=when)
+            body = "\n\n".join(p for p in [message.strip("\n"), *img_lines] if p)
+            append_note(note_path, body, when=when, header_suffix=stamp_line)
             print(f"Appended note to {note_path}")
     finally:
         if tmpdir:

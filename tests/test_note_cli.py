@@ -158,9 +158,12 @@ def test_note_auto_stamps_in_repo(git_repo, monkeypatch):
 
     rc = note_cli.main(["model.py", "-m", "0.92 accuracy"])
     assert rc == 0
-    text = read_entries(Path("model.py.notes.md"))[0].text
-    assert "0.92 accuracy" in text
-    assert "@ `" in text and "`main`" in text
+    entry = read_entries(Path("model.py.notes.md"))[0]
+    # Message stays in the body; the stamp rides on the timestamp header line.
+    assert entry.text == "0.92 accuracy"
+    assert entry.raw_timestamp.startswith("2026-")  # timestamp prefix preserved
+    assert "@ `" in entry.raw_timestamp and "`main`" in entry.raw_timestamp
+    assert entry.timestamp is not None
 
 
 def test_no_commit_flag_suppresses_stamp(git_repo, monkeypatch):
@@ -190,8 +193,10 @@ def test_stamp_after_message_before_images(git_repo, monkeypatch):
     Path("p.png").write_bytes(b"IMG")
 
     note_cli.main(["model.py", "-m", "result", "-i", "p.png"])
-    text = read_entries(Path("model.py.notes.md"))[0].text
-    assert text.index("result") < text.index("@ `") < text.index("![")
+    entry = read_entries(Path("model.py.notes.md"))[0]
+    # Stamp is on the header line; body is message then image, in that order.
+    assert "@ `" in entry.raw_timestamp
+    assert entry.text.index("result") < entry.text.index("![")
 
 
 def test_dot_target_still_writes_folder_note(tmp_path, monkeypatch):

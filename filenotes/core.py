@@ -35,8 +35,9 @@ ASSETS_DIRNAME = "notes-assets"
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 # Used to build collision-resistant copied-image filenames.
 ASSET_STAMP_FORMAT = "%Y-%m-%d_%H%M%S"
-# A line that is *only* a timestamp marks the start of a note entry.
-_TIMESTAMP_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+# A line starting with a timestamp marks the start of a note entry. It may carry
+# a trailing context suffix (e.g. a git provenance stamp) after the timestamp.
+_TIMESTAMP_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?: .*)?$")
 # Markdown image: ![alt](path)
 _IMAGE_MD = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 # Same, but capturing the prefix / path / suffix so the path can be rewritten.
@@ -110,11 +111,23 @@ class Entry:
         return " ".join(text.split())
 
 
-def append_note(note_path: Path, message: str, when: Optional[datetime] = None) -> None:
-    """Append a timestamped entry to *note_path*, creating it if needed."""
+def append_note(
+    note_path: Path,
+    message: str,
+    when: Optional[datetime] = None,
+    header_suffix: Optional[str] = None,
+) -> None:
+    """Append a timestamped entry to *note_path*, creating it if needed.
+
+    *header_suffix* (e.g. a git provenance stamp) is placed on the timestamp
+    line, after the timestamp.
+    """
     when = when or datetime.now()
     body = message.strip("\n")
-    entry = f"{when.strftime(TIMESTAMP_FORMAT)}\n\n{body}\n\n"
+    header = when.strftime(TIMESTAMP_FORMAT)
+    if header_suffix:
+        header += f" {header_suffix}"
+    entry = f"{header}\n\n{body}\n\n"
 
     # Ensure earlier content is separated from the new entry by a blank line.
     prefix = ""
@@ -202,8 +215,10 @@ def parse_entries(text: str) -> List[Entry]:
             while idx < n and not _TIMESTAMP_LINE.match(lines[idx].strip()):
                 body_lines.append(lines[idx])
                 idx += 1
+            # The timestamp is the fixed-width prefix; anything after it (a git
+            # stamp) is kept as part of the raw header for display.
             try:
-                ts: Optional[datetime] = datetime.strptime(raw, TIMESTAMP_FORMAT)
+                ts: Optional[datetime] = datetime.strptime(raw[:19], TIMESTAMP_FORMAT)
             except ValueError:
                 ts = None
             entries.append(Entry(ts, raw, "\n".join(body_lines).strip("\n")))
