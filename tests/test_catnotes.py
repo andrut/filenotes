@@ -43,6 +43,26 @@ def test_cat_recursive_includes_subfolders(tmp_path, monkeypatch, capsys):
     assert out.index("## b.npy") < out.index("## runs/run.csv")
 
 
+def test_cat_recursive_rewrites_image_links(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    sub = tmp_path / "runs"
+    sub.mkdir()
+    (sub / "run.csv").touch()
+    (sub / "plot.png").write_bytes(b"IMG")
+    note_cli.main(["runs/run.csv", "-m", "sub run", "-i", "runs/plot.png"])
+    capsys.readouterr()
+
+    catnotes.main(["-r"])
+    out = capsys.readouterr().out
+    # The subfolder note's image link now resolves from the root.
+    assert "runs/notes-assets/" in out
+    # And --raw leaves it relative to the note file.
+    catnotes.main(["-r", "--raw"])
+    raw = capsys.readouterr().out
+    assert "runs/notes-assets/" not in raw
+    assert "](notes-assets/" in raw
+
+
 def test_cat_no_notes(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     rc = catnotes.main([])

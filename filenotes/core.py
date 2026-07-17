@@ -39,6 +39,9 @@ ASSET_STAMP_FORMAT = "%Y-%m-%d_%H%M%S"
 _TIMESTAMP_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
 # Markdown image: ![alt](path)
 _IMAGE_MD = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+# Same, but capturing the prefix / path / suffix so the path can be rewritten.
+_IMAGE_LINK = re.compile(r"(!\[[^\]]*\]\()([^)]*)(\))")
+_URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 
 
 # --------------------------------------------------------------------------- #
@@ -152,6 +155,37 @@ def image_markdown(note_dir: Path, dest: Path, alt: str) -> str:
     # Markdown wants forward slashes even on non-POSIX filesystems.
     rel = rel.replace(os.sep, "/")
     return f"![{alt}]({rel})"
+
+
+def _is_external_link(path: str) -> bool:
+    """True for links that must not be rewritten (URLs, absolute, anchors)."""
+    return (
+        path.startswith("/")
+        or path.startswith("#")
+        or path.startswith("data:")
+        or bool(_URL_SCHEME.match(path))
+    )
+
+
+def rewrite_image_links(body: str, note_dir: Path, base: Path) -> str:
+    """Rewrite relative Markdown image links so they resolve from *base*.
+
+    A note in ``sub/`` links to ``notes-assets/x.png`` relative to itself; when
+    that note is concatenated into a document living in *base*, the link becomes
+    ``sub/notes-assets/x.png``. External and absolute links are left untouched.
+    """
+    note_dir_s = str(note_dir) or "."
+    base_s = str(base) or "."
+
+    def repl(match: "re.Match") -> str:
+        path = match.group(2).strip()
+        if not path or _is_external_link(path):
+            return match.group(0)
+        target = os.path.normpath(os.path.join(note_dir_s, path))
+        new = os.path.relpath(target, base_s).replace(os.sep, "/")
+        return f"{match.group(1)}{new}{match.group(3)}"
+
+    return _IMAGE_LINK.sub(repl, body)
 
 
 def parse_entries(text: str) -> List[Entry]:

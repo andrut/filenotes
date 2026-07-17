@@ -17,6 +17,7 @@ from .core import (
     FOLDER_NOTE_NAME,
     is_note_file,
     note_file_for,
+    rewrite_image_links,
     source_for,
     walk_note_files,
 )
@@ -81,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
         "-r", "--recursive", action="store_true", help="Include subfolders."
     )
     parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Keep image links verbatim (do not rewrite them to resolve from here).",
+    )
+    parser.add_argument(
         "--version", action="version", version=f"cat-notes {__version__}"
     )
     return parser
@@ -105,6 +111,8 @@ def main(argv: Optional[list] = None) -> int:
             continue
         if not body:
             continue
+        if not args.raw:
+            body = rewrite_image_links(body, note_path.parent, base)
         blocks.append(f"## {_label(base, note_path)}\n\n{body}")
 
     print("\n\n".join(blocks))

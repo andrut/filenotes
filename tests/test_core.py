@@ -7,6 +7,7 @@ from filenotes.core import (
     note_file_for,
     parse_entries,
     read_entries,
+    rewrite_image_links,
     source_for,
     source_label,
 )
@@ -47,6 +48,23 @@ def test_parse_ignores_non_timestamp_preamble():
     entries = parse_entries(text)
     assert len(entries) == 1
     assert entries[0].text == "hello"
+
+
+def test_rewrite_image_links_from_subdir():
+    body = "text\n\n![p](notes-assets/x.png)"
+    out = rewrite_image_links(body, Path("runs"), Path("."))
+    assert "![p](runs/notes-assets/x.png)" in out
+
+
+def test_rewrite_image_links_flat_is_noop():
+    body = "![p](notes-assets/x.png)"
+    assert rewrite_image_links(body, Path("."), Path(".")) == body
+
+
+def test_rewrite_image_links_leaves_external():
+    for link in ("http://ex.com/a.png", "/abs/a.png", "data:image/png;base64,AA"):
+        body = f"![p]({link})"
+        assert rewrite_image_links(body, Path("runs"), Path(".")) == body
 
 
 def test_source_label_folder(tmp_path):
