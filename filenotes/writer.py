@@ -64,6 +64,7 @@ def write_note(
     message: str,
     images: Iterable[Path] = (),
     *,
+    base: Optional[Path] = None,
     stamp_commit: Optional[bool] = None,
     when: Optional[datetime] = None,
     record: bool = True,
@@ -73,6 +74,11 @@ def write_note(
     *targets* are file paths, ``"."``/``None`` for the current folder, or a mix
     (a broadcast writes the same note to each). *images* are existing files that
     get copied into each note's ``notes-assets/`` and linked after the message.
+
+    *base* anchors relative targets: without it note files resolve against the
+    process cwd (the CLI's behavior); with it a folder note goes to
+    ``base/NOTES.md`` and a bare filename to ``base/<file>.notes.md``, letting a
+    GUI target any directory without chdir. Absolute targets ignore *base*.
 
     *stamp_commit* controls the git provenance stamp: ``None`` uses the config
     default, ``True``/``False`` forces it on/off. *when* pins the timestamp (all
@@ -111,6 +117,9 @@ def write_note(
     written: List[Path] = []
     for target in targets:
         note_path = note_file_for(target)
+        if base is not None:
+            # Path joining leaves an absolute note_path untouched.
+            note_path = Path(base) / note_path
         note_dir = note_path.parent
         img_lines = []
         for img in images:

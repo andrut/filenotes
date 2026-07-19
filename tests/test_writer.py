@@ -122,6 +122,29 @@ def test_stamp_wanted_but_no_git_is_reported(tmp_path, monkeypatch):
     assert read_entries(Path("x.dat.notes.md"))[0].text == "note"
 
 
+def test_base_anchors_folder_note_to_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "sub").mkdir()
+
+    write_note(["."], "folder note", base=tmp_path / "sub", stamp_commit=False)
+
+    assert (tmp_path / "sub" / "NOTES.md").is_file()
+    assert not (tmp_path / "NOTES.md").exists()  # not the process cwd
+
+
+def test_base_anchors_file_note_and_assets(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "run.dat").touch()
+    (tmp_path / "p.png").write_bytes(b"IMG")
+
+    write_note(["run.dat"], "note", images=[tmp_path / "p.png"], base=sub, stamp_commit=False)
+
+    assert (sub / "run.dat.notes.md").is_file()
+    assert (sub / "notes-assets").is_dir()  # assets land beside the note
+
+
 def test_records_written_dir_in_history(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("run.npy").touch()

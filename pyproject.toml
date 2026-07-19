@@ -13,12 +13,16 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest"]
+gui = ["PySide6>=6.5"]
 
 [project.scripts]
 notes = "filenotes.cli:main"
 note = "filenotes.note:main"
 ls-notes = "filenotes.lsnotes:main"
 cat-notes = "filenotes.catnotes:main"
+
+[project.gui-scripts]
+notes-gui = "filenotes.gui.app:main"
 
 [tool.setuptools.packages.find]
 include = ["filenotes*"]
