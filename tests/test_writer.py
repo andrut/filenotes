@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from filenotes import history
 from filenotes.core import read_entries
 from filenotes.writer import NoteError, write_note
 
@@ -119,6 +120,24 @@ def test_stamp_wanted_but_no_git_is_reported(tmp_path, monkeypatch):
     assert result.stamp_line is None
     assert result.stamp_requested_but_missing is True
     assert read_entries(Path("x.dat.notes.md"))[0].text == "note"
+
+
+def test_records_written_dir_in_history(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+
+    write_note(["run.npy"], "note", stamp_commit=False)
+
+    assert tmp_path.resolve() in history.recent_dirs()
+
+
+def test_record_false_skips_history(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+
+    write_note(["run.npy"], "note", stamp_commit=False, record=False)
+
+    assert history.recent_dirs() == []
 
 
 def test_stamp_commit_none_uses_config_default(tmp_path, monkeypatch):

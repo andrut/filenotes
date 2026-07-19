@@ -3,6 +3,14 @@ import subprocess
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _isolate_history(monkeypatch, tmp_path_factory):
+    """Point the MRU history at a throwaway file so tests never touch the
+    user's real ~/.local/state store. Kept out of any test's cwd."""
+    store = tmp_path_factory.mktemp("history") / "recent-dirs.json"
+    monkeypatch.setenv("FILENOTES_HISTORY", str(store))
+
+
 def _git(path, *args):
     subprocess.run(
         ["git", "-C", str(path), *args],

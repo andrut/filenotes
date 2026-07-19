@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from . import gitctx
+from . import gitctx, history
 from .config import load_config
 from .core import (
     ASSET_STAMP_FORMAT,
@@ -66,6 +66,7 @@ def write_note(
     *,
     stamp_commit: Optional[bool] = None,
     when: Optional[datetime] = None,
+    record: bool = True,
 ) -> WriteResult:
     """Append one timestamped note to each target's note file.
 
@@ -79,6 +80,10 @@ def write_note(
 
     Raises :class:`NoteError` on bad input *before* writing anything, so a
     broadcast is never left half-written.
+
+    On success each written note's directory is pushed onto the recently-used
+    MRU list (:mod:`filenotes.history`) so front-ends can suggest it later; pass
+    ``record=False`` to skip that.
     """
     targets = list(targets)
     images = [Path(p) for p in images]
@@ -114,5 +119,13 @@ def write_note(
         body = "\n\n".join(p for p in [body_message, *img_lines] if p)
         append_note(note_path, body, when=when, header_suffix=stamp_line)
         written.append(note_path)
+
+    if record:
+        seen = set()
+        for note_path in written:
+            note_dir = note_path.parent
+            if str(note_dir) not in seen:
+                seen.add(str(note_dir))
+                history.record_dir(note_dir)
 
     return WriteResult(written, stamp_line, stamp_missing)
