@@ -14,19 +14,9 @@ from typing import Optional
 
 from . import __version__
 from . import capture as capture_mod
-from . import gitctx
 from .config import load_config
-from .core import (
-    ASSET_STAMP_FORMAT,
-    Color,
-    append_note,
-    copy_image,
-    humanize_age,
-    image_markdown,
-    is_note_file,
-    note_file_for,
-    recent_files,
-)
+from .core import Color, humanize_age, recent_files
+from .writer import NoteError, validate_images, validate_targets, write_note
 
 EDITOR_TEMPLATE = """
 # Enter your note above. Lines starting with '#' are ignored.
@@ -175,23 +165,15 @@ def main(argv: Optional[list] = None) -> int:
             return 1
         targets = [selected]
 
-    # Validate up front so we never write a partial broadcast.
-    for target in targets:
-        if target is not None and target != "." and is_note_file(Path(target)):
-            print(
-                f"error: '{target}' is itself a note file; refusing to nest notes.",
-                file=sys.stderr,
-            )
-            return 2
-
-    # Validate images up front too, so nothing is written on a bad path.
+    # Validate up front so we never capture or write on bad input (and never
+    # leave a broadcast half-written).
     images = [Path(p) for p in args.image]
-    for img in images:
-        if not img.is_file():
-            print(f"error: image not found: '{img}'", file=sys.stderr)
-            return 2
-
-    note_paths = [note_file_for(t) for t in targets]
+    try:
+        validate_targets(targets)
+        validate_images(images)
+    except NoteError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     # Captured images (screenshot / region / clipboard) live in a temp dir until
     # copied into each note's notes-assets/. Capture happens before the editor so
@@ -227,32 +209,25 @@ def main(argv: Optional[list] = None) -> int:
                     return 1
                 message = ""
 
-        # Version-control stamp: default on (config), forced by --commit /
-        # --no-commit. Computed once so a broadcast stamps every file the same.
-        want_stamp = load_config()["stamp_commit"] if args.commit is None else args.commit
-        stamp_line = None
-        if want_stamp:
-            ctx = gitctx.git_context()
-            if ctx is not None:
-                stamp_line = ctx.stamp()
-            elif args.commit is True:
-                print(
-                    "note: --commit requested but no git commit found here; "
-                    "writing without a stamp.",
-                    file=sys.stderr,
-                )
-
-        # Single timestamp so a broadcast note shares one moment across files.
-        when = datetime.now()
-        stamp = when.strftime(ASSET_STAMP_FORMAT)
-        for note_path in note_paths:
-            note_dir = note_path.parent
-            img_lines = []
-            for img in images:
-                dest = copy_image(note_dir, img, stamp)
-                img_lines.append(image_markdown(note_dir, dest, img.name))
-            body = "\n\n".join(p for p in [message.strip("\n"), *img_lines] if p)
-            append_note(note_path, body, when=when, header_suffix=stamp_line)
+        # Stamp default comes from config unless --commit/--no-commit forces it.
+        # The single shared timestamp for a broadcast is handled inside write_note.
+        try:
+            result = write_note(
+                targets,
+                message,
+                images,
+                stamp_commit=(None if args.commit is None else args.commit),
+            )
+        except NoteError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        if result.stamp_requested_but_missing and args.commit is True:
+            print(
+                "note: --commit requested but no git commit found here; "
+                "writing without a stamp.",
+                file=sys.stderr,
+            )
+        for note_path in result.note_paths:
             print(f"Appended note to {note_path}")
     finally:
         if tmpdir:
