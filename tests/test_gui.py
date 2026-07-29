@@ -94,6 +94,18 @@ def test_save_disabled_until_there_is_content(window):
     assert not window.save_btn.isEnabled()
 
 
+def test_embed_checkbox_inlines_image(window, tmp_path):
+    img = tmp_path / "shot.png"
+    img.write_bytes(b"\x89PNG\r\nDATA")
+    window._add_image(img)
+    window.embed_check.setChecked(True)
+    window.editor.setPlainText("embedded from gui")
+    window._on_save()
+    text = read_entries(tmp_path / "NOTES.md")[0].text
+    assert "data:image/png;base64," in text
+    assert not (tmp_path / "notes-assets").exists()
+
+
 def test_save_records_history(window, tmp_path):
     window.editor.setPlainText("recorded")
     window._on_save()

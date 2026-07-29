@@ -17,7 +17,9 @@ stays clean, human-readable Markdown with no bookkeeping markers.
 
 from __future__ import annotations
 
+import base64
 import filecmp
+import mimetypes
 import os
 import re
 import shutil
@@ -168,6 +170,20 @@ def image_markdown(note_dir: Path, dest: Path, alt: str) -> str:
     # Markdown wants forward slashes even on non-POSIX filesystems.
     rel = rel.replace(os.sep, "/")
     return f"![{alt}]({rel})"
+
+
+def embed_image_markdown(src: Path, alt: str) -> str:
+    """Render a Markdown image with *src* inlined as a base64 data URI.
+
+    The note becomes self-contained — no ``notes-assets/`` copy to carry — at the
+    cost of a larger file (base64 is ~33% bigger than the bytes). base64's
+    alphabet has no ``)`` or ``]``, so the link stays a single well-formed token
+    that the summary/link regexes still handle.
+    """
+    data = Path(src).read_bytes()
+    mime = mimetypes.guess_type(str(src))[0] or "application/octet-stream"
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"![{alt}](data:{mime};base64,{encoded})"
 
 
 def _is_external_link(path: str) -> bool:

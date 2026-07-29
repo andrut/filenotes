@@ -21,6 +21,7 @@ from typing import Dict
 DEFAULTS: Dict[str, object] = {
     "recent_count": 5,
     "stamp_commit": True,
+    "embed_images": False,
 }
 
 
@@ -86,10 +87,15 @@ def load_config() -> Dict[str, object]:
     if env_stamp is not None:
         cfg["stamp_commit"] = _as_bool(env_stamp)
 
+    env_embed = os.environ.get("FILENOTES_EMBED_IMAGES")
+    if env_embed is not None:
+        cfg["embed_images"] = _as_bool(env_embed)
+
     try:
         cfg["recent_count"] = max(1, int(cfg["recent_count"]))
     except (TypeError, ValueError):
         cfg["recent_count"] = DEFAULTS["recent_count"]
     cfg["stamp_commit"] = _as_bool(cfg["stamp_commit"])
+    cfg["embed_images"] = _as_bool(cfg["embed_images"])
 
     return cfg

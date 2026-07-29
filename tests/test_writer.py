@@ -145,6 +145,53 @@ def test_base_anchors_file_note_and_assets(tmp_path, monkeypatch):
     assert (sub / "notes-assets").is_dir()  # assets land beside the note
 
 
+def test_embed_inlines_image_and_skips_assets(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+    Path("p.png").write_bytes(b"\x89PNG\r\nDATA")
+
+    write_note(["run.npy"], "caption", images=[Path("p.png")], embed=True, stamp_commit=False)
+
+    text = read_entries(Path("run.npy.notes.md"))[0].text
+    assert "](data:image/png;base64," in text
+    assert "notes-assets/" not in text
+    assert not Path("notes-assets").exists()  # nothing copied out
+
+
+def test_embed_false_still_copies_to_assets(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+    Path("p.png").write_bytes(b"IMG")
+
+    write_note(["run.npy"], "caption", images=[Path("p.png")], embed=False, stamp_commit=False)
+
+    text = read_entries(Path("run.npy.notes.md"))[0].text
+    assert "notes-assets/" in text and "data:image" not in text
+
+
+def test_embed_none_uses_config_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(tmp_path / "none.toml"))
+    monkeypatch.setenv("FILENOTES_EMBED_IMAGES", "true")
+    Path("run.npy").touch()
+    Path("p.png").write_bytes(b"IMG")
+
+    write_note(["run.npy"], "c", images=[Path("p.png")], stamp_commit=False)  # embed=None
+
+    assert "data:image" in read_entries(Path("run.npy.notes.md"))[0].text
+
+
+def test_embedded_image_collapses_in_summary(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("run.npy").touch()
+    Path("p.png").write_bytes(b"\x89PNG\r\nDATA")
+
+    write_note(["run.npy"], "caption", images=[Path("p.png")], embed=True, stamp_commit=False)
+
+    # The huge data URI must not drown the one-line summary.
+    assert read_entries(Path("run.npy.notes.md"))[0].summary() == "caption [img]"
+
+
 def test_records_written_dir_in_history(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("run.npy").touch()

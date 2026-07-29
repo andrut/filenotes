@@ -17,6 +17,7 @@ from typing import List, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import capture as capture_mod
+from ..config import load_config
 from ..writer import NoteError, write_note
 from .context import ContextChooser
 from .workers import CaptureWorker
@@ -126,6 +128,14 @@ class NoteWindow(QWidget):
         self.status = QLabel("")
         self.status.setStyleSheet("color: gray;")
 
+        # Embed toggle: inline images as base64 so the note moves on its own.
+        self.embed_check = QCheckBox("Embed images")
+        self.embed_check.setToolTip(
+            "Inline attached images inside the note file (base64) so it is\n"
+            "self-contained — no notes-assets/ folder to keep alongside it."
+        )
+        self.embed_check.setChecked(bool(load_config()["embed_images"]))
+
         # Thumbnail strip: hidden until there is at least one attachment.
         self.thumbs = QWidget()
         self.thumbs_layout = QHBoxLayout(self.thumbs)
@@ -136,6 +146,7 @@ class NoteWindow(QWidget):
         attach_row = QHBoxLayout()
         attach_row.addWidget(self.attach_btn)
         attach_row.addWidget(self.status, 1)
+        attach_row.addWidget(self.embed_check)
 
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._on_cancel)
@@ -237,7 +248,13 @@ class NoteWindow(QWidget):
         if not message and not self._images:
             return
         try:
-            result = write_note([target], message, list(self._images), base=base)
+            result = write_note(
+                [target],
+                message,
+                list(self._images),
+                base=base,
+                embed=self.embed_check.isChecked(),
+            )
         except (NoteError, OSError) as exc:
             QMessageBox.critical(self, "Could not save note", str(exc))
             return

@@ -147,6 +147,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Do not add the version-control stamp (overrides the config default).",
     )
+    parser.add_argument(
+        "-E",
+        "--embed",
+        dest="embed",
+        action="store_true",
+        default=None,
+        help="Inline attached images as base64 in the note so it is self-"
+        "contained (no notes-assets/ to move). Overrides the config default.",
+    )
+    parser.add_argument(
+        "--no-embed",
+        dest="embed",
+        action="store_false",
+        help="Copy images into notes-assets/ and link them (overrides the config).",
+    )
     parser.add_argument("--version", action="version", version=f"note {__version__}")
     return parser
 
@@ -217,6 +232,7 @@ def main(argv: Optional[list] = None) -> int:
                 message,
                 images,
                 stamp_commit=(None if args.commit is None else args.commit),
+                embed=args.embed,
             )
         except NoteError as exc:
             print(f"error: {exc}", file=sys.stderr)

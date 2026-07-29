@@ -23,6 +23,7 @@ from .core import (
     ASSET_STAMP_FORMAT,
     append_note,
     copy_image,
+    embed_image_markdown,
     image_markdown,
     is_note_file,
     note_file_for,
@@ -66,6 +67,7 @@ def write_note(
     *,
     base: Optional[Path] = None,
     stamp_commit: Optional[bool] = None,
+    embed: Optional[bool] = None,
     when: Optional[datetime] = None,
     record: bool = True,
 ) -> WriteResult:
@@ -84,6 +86,11 @@ def write_note(
     default, ``True``/``False`` forces it on/off. *when* pins the timestamp (all
     targets in one call share it); it defaults to now.
 
+    *embed* controls how images are attached: ``False`` copies them into each
+    note's ``notes-assets/`` and links them relatively (the default); ``True``
+    inlines them as base64 data URIs so the note file is self-contained and can
+    be moved on its own. ``None`` uses the config default.
+
     Raises :class:`NoteError` on bad input *before* writing anything, so a
     broadcast is never left half-written.
 
@@ -96,8 +103,12 @@ def write_note(
     validate_targets(targets)
     validate_images(images)
 
-    if stamp_commit is None:
-        stamp_commit = bool(load_config()["stamp_commit"])
+    if stamp_commit is None or embed is None:
+        cfg = load_config()
+        if stamp_commit is None:
+            stamp_commit = bool(cfg["stamp_commit"])
+        if embed is None:
+            embed = bool(cfg["embed_images"])
 
     when = when or datetime.now()
 
@@ -123,8 +134,11 @@ def write_note(
         note_dir = note_path.parent
         img_lines = []
         for img in images:
-            dest = copy_image(note_dir, img, asset_stamp)
-            img_lines.append(image_markdown(note_dir, dest, img.name))
+            if embed:
+                img_lines.append(embed_image_markdown(img, img.name))
+            else:
+                dest = copy_image(note_dir, img, asset_stamp)
+                img_lines.append(image_markdown(note_dir, dest, img.name))
         body = "\n\n".join(p for p in [body_message, *img_lines] if p)
         append_note(note_path, body, when=when, header_suffix=stamp_line)
         written.append(note_path)

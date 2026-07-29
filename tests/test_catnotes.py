@@ -63,6 +63,22 @@ def test_cat_recursive_rewrites_image_links(tmp_path, monkeypatch, capsys):
     assert "](notes-assets/" in raw
 
 
+def test_cat_recursive_leaves_embedded_images_untouched(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    sub = tmp_path / "runs"
+    sub.mkdir()
+    (sub / "run.csv").touch()
+    (sub / "plot.png").write_bytes(b"\x89PNG\r\nDATA")
+    note_cli.main(["runs/run.csv", "-m", "embedded", "-i", "runs/plot.png", "-E"])
+    capsys.readouterr()
+
+    catnotes.main(["-r"])
+    out = capsys.readouterr().out
+    # A data: URI must survive concatenation verbatim — no path rewriting.
+    assert "](data:image/png;base64," in out
+    assert "runs/notes-assets/" not in out
+
+
 def test_cat_no_notes(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     rc = catnotes.main([])

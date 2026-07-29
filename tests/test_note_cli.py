@@ -199,6 +199,31 @@ def test_stamp_after_message_before_images(git_repo, monkeypatch):
     assert entry.text.index("result") < entry.text.index("![")
 
 
+def test_embed_flag_inlines_image(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("after.npy").touch()
+    Path("p.png").write_bytes(b"\x89PNG\r\nDATA")
+
+    rc = note_cli.main(["after.npy", "-m", "readings", "-i", "p.png", "-E"])
+    assert rc == 0
+    text = read_entries(Path("after.npy.notes.md"))[0].text
+    assert "data:image/png;base64," in text
+    assert not Path("notes-assets").exists()
+
+
+def test_no_embed_flag_overrides_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FILENOTES_CONFIG", str(tmp_path / "none.toml"))
+    monkeypatch.setenv("FILENOTES_EMBED_IMAGES", "true")  # default on...
+    Path("after.npy").touch()
+    Path("p.png").write_bytes(b"IMG")
+
+    rc = note_cli.main(["after.npy", "-m", "x", "-i", "p.png", "--no-embed"])  # ...forced off
+    assert rc == 0
+    text = read_entries(Path("after.npy.notes.md"))[0].text
+    assert "notes-assets/" in text and "data:image" not in text
+
+
 def test_dot_target_still_writes_folder_note(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rc = note_cli.main([".", "-m", "folder log"])
