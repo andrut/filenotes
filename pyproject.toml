@@ -1,15 +1,38 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "filenotes"
 version = "0.1.0"
-description = "Yet another lab notes program: append timestamped notes to files, folders, or git HEAD."
+description = "Keep lab-style notes in plain Markdown right next to the files they describe."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Andrzej Rutkowski", email = "andrzej.rutkowski@gmail.com" }]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["notes", "markdown", "annotations", "lab-notebook", "research", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Utilities",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/andrut/filenotes"
+Repository = "https://github.com/andrut/filenotes"
+Issues = "https://github.com/andrut/filenotes/issues"
 
 [project.optional-dependencies]
 dev = ["pytest"]

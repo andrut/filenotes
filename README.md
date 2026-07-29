@@ -65,7 +65,9 @@ Use `cat-notes` (`notes cat`) to concatenate everything in current folder to pre
 
 # Installation
 
-Filenotes is pure Python (3.9+). The easiest way to install is with [pipx](https://pipx.pypa.io), which drops it in its own isolated environment and puts the `note`, `ls-notes`, `cat-notes` and `notes` commands on your PATH.
+Filenotes is pure Python (3.9+) with no dependencies — note-taking works anywhere Python runs. Screenshots and the desktop GUI need a couple of extra pieces (see [Notes](#notes) below).
+
+The easiest way to install is with [pipx](https://pipx.pypa.io), which drops it in its own isolated environment and puts the `note`, `ls-notes`, `cat-notes` and `notes` commands on your PATH.
 
 First, get pipx if you don't have it:
 
