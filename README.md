@@ -6,7 +6,7 @@ It's a small command-line tool for keeping lab-style notes right next to the fil
 ## Disclaimer 
 [![AI-assisted development](https://img.shields.io/badge/development-AI--assisted-6f42c1)](#ai-assisted-development)
 
-This is only a prototype built for my day-to-day personal notetaking; It's mostly coded with agents but I just think it's cool, useful, quite elegant and that's why I share it in the open. 
+This is only a prototype built for my day-to-day personal notetaking; it's mostly coded with agents but I just think it's cool, useful, quite elegant and that's why I share it in the open. 
 
 ## Example
 
@@ -47,13 +47,13 @@ That command will wait for user to select region of the screen, then put that sc
 
 ## The why
 
-I built it for self, because during research work I tend to produce a lot of files with timestamps for filenames and often its hard and tedious to keep track of everything. Using this tool I can quickly drop some notes for future me, attach a screenshot of a plot, put some context on why and how or just drop some other adhoc notes. There are many tools like that but I needed something superfast to use and wanted notes to live next to the data they describe.
+I built it for self, because during research work I tend to produce a lot of files with timestamps for filenames and often it's hard and tedious to keep track of everything. Using this tool I can quickly drop some notes for future me, attach a screenshot of a plot, put some context on why and how or just drop some other ad hoc notes. There are many tools like that but I needed something superfast to use and wanted notes to live next to the data they describe.
 
 # Usage
 
 ## Adding notes
 
-You add notes with `note e01.dat -m "Baseline data"` (alias `notes add`), or just `note e01.dat` brigs up $EDITOR (just like `git commit`). You can easliy attach images (`-i`), a screenshot, a region, or clipboard image (`-S`/`-R`/`-C`).
+You add notes with `note e01.dat -m "Baseline data"` (alias `notes add`), or just `note e01.dat` brings up $EDITOR (just like `git commit`). You can easily attach images (`-i`), a screenshot, a region, or clipboard image (`-S`/`-R`/`-C`).
 
 If you just run `note` or `note -m "Some note"` it brings up recent-file picker, so you can quickly drop a note on recent files.
 
