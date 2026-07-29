@@ -1,6 +1,8 @@
 # Filenotes
 It's a small command-line tool for keeping lab-style notes right next to the files they describe. Each note is appended as an entry to a plain MD file that lives beside its subject, so your notes stay greppable, portable, and travel with the data. 
 
+![demo](demo.gif)
+
 ## Disclaimer 
 [![AI-assisted development](https://img.shields.io/badge/development-AI--assisted-6f42c1)](#ai-assisted-development)
 
