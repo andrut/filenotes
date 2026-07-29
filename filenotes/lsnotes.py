@@ -38,7 +38,7 @@ def _resolve_targets(targets: List[str]) -> List[Path]:
 
 
 def _render_long(note_path: Path, entries: List[Entry], color: Color) -> str:
-    lines = [color.name(source_label(note_path)) + ":"]
+    lines = [color.name(source_label(note_path))]
     for i, entry in enumerate(entries):
         if i:
             lines.append("")
@@ -50,7 +50,7 @@ def _render_long(note_path: Path, entries: List[Entry], color: Color) -> str:
 
 
 def _render_short(note_path: Path, entries: List[Entry], color: Color) -> str:
-    label = color.name(source_label(note_path)) + ":"
+    label = color.name(source_label(note_path))
     if not entries:
         return label
     latest = entries[-1]  # newest note in the file
