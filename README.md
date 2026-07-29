@@ -101,3 +101,15 @@ $ pipx install .            # add ".[gui]" instead for the GUI
 - **GUI on the newest Python:** PySide6 wheels lag the very newest Python (e.g. 3.14). If a `[gui]` install fails, point pipx at a supported interpreter, e.g. `--python /usr/bin/python3`.
 - **Developing:** add `--editable` to a local install so code changes take effect without reinstalling: `pipx install --editable ".[gui]"`.
 
+# Configuration
+
+Filenotes runs fine with no config. To change the defaults, drop a small TOML file at `~/.config/filenotes/config.toml` (or point `$FILENOTES_CONFIG` at one):
+
+```toml
+recent_count = 5      # how many files the bare `note` recent-file picker lists
+stamp_commit = true   # append the git `branch @ commit` stamp to each note
+embed_images = false  # inline images as base64 instead of copying into notes-assets/
+```
+
+Any key can also be overridden per-run via an environment variable — `FILENOTES_RECENT_COUNT`, `FILENOTES_STAMP_COMMIT`, `FILENOTES_EMBED_IMAGES` — which wins over the file.
+
