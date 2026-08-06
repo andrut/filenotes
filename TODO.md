@@ -4,4 +4,11 @@
 - GUI tool
     I'm thinking of creating a GUI tool for making notes from outside of terminal level. Context folder/file would be the one we just worked on with the main tool. It would allow adding 
 - Notes as hidden files (.file...md) - by default off, setable in tools config.
-
+- ls-notes:
+    -- -ss: --super-short  - in this print format we only get very short date
+    -- print filenames without ":" symbol at the end of filename
+- embedded images or images next to note with the same prefix
+- Lib for using notes in program:
+	- prompting note on some file - user has to provide note on the file that program just created
+	- reading notes from files that we open
+	- opening file by looking for file that has some phrase in the note
