@@ -11,6 +11,7 @@ from . import __version__
 from .core import (
     Color,
     Entry,
+    compact_age,
     discover_note_files,
     is_note_file,
     note_file_for,
@@ -57,6 +58,17 @@ def _render_short(note_path: Path, entries: List[Entry], color: Color) -> str:
     return f"{label} {color.time(latest.raw_timestamp)} {latest.summary()}"
 
 
+def _render_super_short(note_path: Path, entries: List[Entry], color: Color) -> str:
+    """Like short mode, but the timestamp collapses to a terse age (``2d``)."""
+    label = color.name(source_label(note_path))
+    if not entries:
+        return label
+    latest = entries[-1]
+    # A hand-mangled header line may not parse; say so rather than guess an age.
+    age = compact_age(latest.timestamp.timestamp()) if latest.timestamp else "?"
+    return f"{label} {color.time(age)} {latest.summary()}"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ls-notes",
@@ -68,7 +80,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Specific files/folders to show. Default: every note file here.",
     )
     parser.add_argument(
-        "-s", "--short", action="store_true", help="Collapse each file to one line."
+        "-s",
+        "--short",
+        action="count",
+        default=0,
+        help="Collapse each file to one line. Repeat (-ss) to shorten the "
+        "timestamp to a terse age like '2d'.",
+    )
+    parser.add_argument(
+        "--super-short",
+        action="store_true",
+        help="Same as -ss.",
     )
     parser.add_argument(
         "--version", action="version", version=f"ls-notes {__version__}"
@@ -79,6 +101,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[list] = None) -> int:
     args = build_parser().parse_args(argv)
     color = Color(sys.stdout)
+
+    # 0 = long, 1 = short (-s), 2 = super short (-ss / --super-short).
+    level = 2 if args.super_short else min(args.short, 2)
 
     if args.targets:
         note_files = _resolve_targets(args.targets)
@@ -97,7 +122,9 @@ def main(argv: Optional[list] = None) -> int:
         entries = read_entries(note_path)
         if not entries:
             continue
-        if args.short:
+        if level == 2:
+            blocks.append(_render_super_short(note_path, entries, color))
+        elif level == 1:
             blocks.append(_render_short(note_path, entries, color))
         else:
             blocks.append(_render_long(note_path, entries, color))
@@ -106,7 +133,7 @@ def main(argv: Optional[list] = None) -> int:
         print("No notes found.")
         return 0
 
-    print("\n".join(blocks) if args.short else "\n\n".join(blocks))
+    print("\n".join(blocks) if level else "\n\n".join(blocks))
     return 0
 
 

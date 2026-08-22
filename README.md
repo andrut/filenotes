@@ -59,7 +59,13 @@ If you just run `note` or `note -m "Some note"` it brings up recent-file picker,
 
 ## Viewing notes
 
-Just use `ls-notes` (`notes ls`) for a colored terminal listing. 
+Just use `ls-notes` (`notes ls`) for a colored terminal listing. Add `-s` to collapse each file to one line, or `-ss` for the same thing with the timestamp squeezed down to an age like `3d`:
+```console
+$ ls-notes -ss
+result-8.data 3d Baseline run, setting at 1123
+points.npz 47m Points look uniform. TODO: check that [img]
+```
+
 
 Use `cat-notes` (`notes cat`) to concatenate everything in current folder to prepare a quick structured report dump of every note taken, including images in a single MD output.
 

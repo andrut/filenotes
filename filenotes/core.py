@@ -311,6 +311,35 @@ def humanize_age(mtime: float, now: Optional[float] = None) -> str:
     return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
 
 
+# Age units for compact_age, largest first: (suffix, seconds per unit).
+# Months/years are approximations — this is a glanceable age, not a calendar.
+_COMPACT_UNITS = (
+    ("y", 365 * 86400),
+    ("mo", 30 * 86400),
+    ("w", 7 * 86400),
+    ("d", 86400),
+    ("h", 3600),
+    ("m", 60),
+)
+
+
+def compact_age(when: float, now: Optional[float] = None) -> str:
+    """An ultra-terse age like ``2d``, ``1h``, ``3mo`` — always rounded *down*.
+
+    The largest unit that fits wins and the remainder is dropped, so 1h32m
+    reads ``1h`` and only a full two hours reads ``2h``. Ages under a minute
+    fall through to seconds (``5s``).
+    """
+    now = now if now is not None else datetime.now().timestamp()
+    delta = int(now - when)
+    if delta < 0:
+        delta = 0  # clock skew / a note stamped in the future
+    for suffix, size in _COMPACT_UNITS:
+        if delta >= size:
+            return f"{delta // size}{suffix}"
+    return f"{delta}s"
+
+
 # --------------------------------------------------------------------------- #
 # Terminal colors
 # --------------------------------------------------------------------------- #
